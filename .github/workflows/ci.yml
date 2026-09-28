@@ -13,12 +13,14 @@ jobs:
       - run: python -m pip install -e . pytest
       - run: python -m compileall runtime scripts
       - run: pytest -q
-      - run: python - <<'PY'
-from pathlib import Path
-import hashlib
-root=Path('.')
-for line in Path('SOURCE_MANIFEST.sha256').read_text().splitlines():
-    digest, rel = line.split('  ',1)
-    assert hashlib.sha256((root/rel).read_bytes()).hexdigest()==digest, rel
-print('source manifest PASS')
-PY
+      - name: Verify source manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root=Path('.')
+          for line in Path('SOURCE_MANIFEST.sha256').read_text().splitlines():
+              digest, rel = line.split('  ',1)
+              assert hashlib.sha256((root/rel).read_bytes()).hexdigest()==digest, rel
+          print('source manifest PASS')
+          PY
