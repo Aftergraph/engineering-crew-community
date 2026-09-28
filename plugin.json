@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "name": "Aftergraph"
+  },
+  "description": "Open-source Aftergraph Engineering Crew community core for portable engineering and UI/UX workflows.",
+  "homepage": "https://aftergraph.org",
+  "license": "Apache-2.0",
+  "name": "aftergraph-engineering-crew-community",
+  "version": "12.0.0-frontier.1"
+}
