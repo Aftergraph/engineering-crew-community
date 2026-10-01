@@ -15,23 +15,71 @@ from .ui_contracts import ComponentNode, ExperienceSpec, ScreenSpec
 from .version import RELEASE_VERSION
 
 
+_EXPERIENCE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "experience": {"type": "object", "description": "Minimal experience spec: experienceId, productName, screenId, title, nodes[]."},
+        "tokens": {"type": "object", "description": "Design token document (W3C design-tokens shape)."},
+        "layout": {"type": "array", "items": {"type": "object"}, "description": "Container rules: selector, minWidth, maxWidth, styles."},
+    },
+}
+
 TOOLS = (
-    {"name": "community_doctor", "description": "Report Community edition identity and portable capabilities."},
-    {"name": "uiux_audit", "description": "Audit an ExperienceSpec for flow and accessibility blockers."},
-    {"name": "uiux_compile", "description": "Compile a deterministic HTML UI artifact from a minimal spec."},
-    {"name": "metrics_aggregate", "description": "Aggregate verified outcome metrics from observations."},
+    {
+        "name": "community_doctor",
+        "description": "Report Community edition identity and portable capabilities.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "uiux_audit",
+        "description": "Audit an ExperienceSpec for flow and accessibility blockers.",
+        "inputSchema": _EXPERIENCE_SCHEMA,
+    },
+    {
+        "name": "uiux_compile",
+        "description": "Compile a deterministic HTML UI artifact from a minimal spec.",
+        "inputSchema": {
+            "type": "object",
+            "properties": dict(_EXPERIENCE_SCHEMA["properties"], target={"type": "string", "default": "html"}),
+        },
+    },
+    {
+        "name": "metrics_aggregate",
+        "description": "Aggregate verified outcome metrics from observations.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"observations": {"type": "array", "items": {"type": "object"}}},
+            "required": ["observations"],
+        },
+    },
 )
 
 
 class CommunityMCPServer:
     protocol = "2026-07-28"
+    #: protocol revisions this server will echo back to a client that asks for them
+    supported_protocols = ("2024-11-05", "2025-03-26", "2025-06-18", "2026-07-28")
+    name = "aftergraph-engineering-crew-community"
 
-    def handle(self, request: dict) -> dict:
+    def handle(self, request: dict):
         rid = request.get("id")
         method = request.get("method")
         params = request.get("params") or {}
+        # Notifications carry no id and must never get a response.
+        if method is not None and method.startswith("notifications/"):
+            return None
+        if method == "initialize":
+            asked = params.get("protocolVersion")
+            agreed = asked if asked in self.supported_protocols else self.protocol
+            return {"jsonrpc": "2.0", "id": rid, "result": {
+                "protocolVersion": agreed,
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": {"name": self.name, "version": RELEASE_VERSION},
+            }}
+        if method == "ping":
+            return {"jsonrpc": "2.0", "id": rid, "result": {}}
         if method == "server/discover":
-            return {"jsonrpc": "2.0", "id": rid, "result": {"name": "aftergraph-engineering-crew-community", "version": RELEASE_VERSION, "protocolVersion": self.protocol, "capabilities": {"tools": {}}}}
+            return {"jsonrpc": "2.0", "id": rid, "result": {"name": self.name, "version": RELEASE_VERSION, "protocolVersion": self.protocol, "capabilities": {"tools": {}}}}
         if method == "tools/list":
             return {"jsonrpc": "2.0", "id": rid, "result": {"tools": list(TOOLS)}}
         if method != "tools/call":
